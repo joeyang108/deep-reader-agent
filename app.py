@@ -1,5 +1,5 @@
 import streamlit as st
-from google import genai
+import google.generativeai as genai
 import os
 
 st.set_page_config(
@@ -18,8 +18,8 @@ if not api_key:
     st.error("Missing GEMINI_API_KEY. Please configure it in Streamlit Secrets.")
     st.stop()
 
-# Initialize Gemini Client
-client = genai.Client(api_key=api_key)
+# Configure Gemini Client
+genai.configure(api_key=api_key)
 
 st.divider()
 st.subheader("System Status")
@@ -30,9 +30,9 @@ st.write("Target Pillars: **NFL Analytics | Soccer Systems | Sonic Architecture*
 if st.button("Ping Gemini 2.5 Flash", type="primary"):
     with st.spinner("Connecting to Google AI Studio..."):
         try:
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents="State in 2 crisp sentences that the Deep Reader Agent intelligence pipeline is initialized and ready for tactical feed ingestion."
+            model = genai.GenerativeModel("gemini-2.5-flash")
+            response = model.generate_content(
+                "State in 2 crisp sentences that the Deep Reader Agent intelligence pipeline is initialized and ready for tactical feed ingestion."
             )
             st.success("API Connection Verified!")
             st.info(response.text)
