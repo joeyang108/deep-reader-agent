@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import time
 import os
 
 st.set_page_config(
@@ -37,10 +38,9 @@ exclude_keywords = st.text_area(
 
 st.divider()
 
-# --- Scout Execution ---
+# --- Scout Execution with Auto-Retry Logic ---
 if st.button("⚡ Scout High-Density Content", type="primary"):
     with st.spinner("Scouting live web, discovering independent feeds, and scoring density..."):
-        # Explicit Gemini 3.6 Flash endpoint
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={api_key}"
         headers = {"Content-Type": "application/json"}
         
@@ -75,13 +75,29 @@ Ensure the output is clean, readable, and formatted for a mobile reading screen.
             "tools": [{"google_search": {}}]
         }
 
-        try:
-            res = requests.post(url, headers=headers, json=payload)
-            if res.status_code == 200:
-                data = res.json()
-                text = data["candidates"][0]["content"]["parts"][0]["text"]
-                st.markdown(text)
-            else:
-                st.error(f"API Error ({res.status_code}): {res.text}")
-        except Exception as e:
-            st.error(f"Execution Error: {e}")
+        # Handle rate limits gracefully with backoff
+        max_retries = 3
+        success = False
+        
+        for attempt in range(max_retries):
+            try:
+                res = requests.post(url, headers=headers, json=payload)
+                if res.status_code == 200:
+                    data = res.json()
+                    text = data["candidates"][0]["content"]["parts"][0]["text"]
+                    st.markdown(text)
+                    success = True
+                    break
+                elif res.status_code == 429:
+                    wait_time = (attempt + 1) * 4
+                    st.warning(f"Quota burst limit reached. Retrying automatically in {wait_time}s (Attempt {attempt+1}/{max_retries})...")
+                    time.sleep(wait_time)
+                else:
+                    st.error(f"API Error ({res.status_code}): {res.text}")
+                    break
+            except Exception as e:
+                st.error(f"Execution Error: {e}")
+                break
+        
+        if not success and res.status_code == 429:
+            st.error("Rate limit saturated. Please wait 30 seconds before triggering another scout, or link billing in Google AI Studio to lift tier caps.")
