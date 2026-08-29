@@ -40,8 +40,9 @@ st.divider()
 # --- Scout Execution ---
 if st.button("⚡ Scout High-Density Content", type="primary"):
     with st.spinner("Scouting live web, discovering independent feeds, and scoring density..."):
-        # Use gemini-2.0-flash as the primary stable model
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+        # Use gemini-3.6-flash as the primary stable model
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={api_key}"
+
         headers = {"Content-Type": "application/json"}
         
         prompt = f"""
