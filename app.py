@@ -9,7 +9,7 @@ st.set_page_config(
 )
 
 st.title("⚡ Deep Reader Agent")
-st.caption("Deep Analysis Scout & Density Reader — NFL Pillar")
+st.caption("Autonomous Scout & Density Reader — NFL Pillar")
 
 # Retrieve API key from Streamlit Secrets or Environment
 api_key = st.secrets.get("GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY"))
@@ -40,7 +40,8 @@ st.divider()
 # --- Scout Execution ---
 if st.button("⚡ Scout High-Density Content", type="primary"):
     with st.spinner("Scouting live web, discovering independent feeds, and scoring density..."):
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        # Use gemini-2.0-flash as the primary stable model
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
         headers = {"Content-Type": "application/json"}
         
         prompt = f"""
@@ -62,7 +63,7 @@ TASK & OUTPUT RULES:
    - Key Tactical Takeaways: 3 concise bullet points breaking down the specific scheme, coverage, play concept, or metric mechanics.
    - Why It Matters: 1 sentence on the strategic takeaway.
 
-Ensure the output is clean, readable, and ready for a mobile terminal interface.
+Ensure the output is clean, readable, and formatted for a mobile reading screen.
 """
 
         payload = {
@@ -71,7 +72,6 @@ Ensure the output is clean, readable, and ready for a mobile terminal interface.
                     "text": prompt
                 }]
             }],
-            # Enable Google Search Grounding to discover live independent feeds
             "tools": [{"google_search": {}}]
         }
 
