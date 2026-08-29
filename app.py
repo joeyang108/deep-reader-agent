@@ -9,7 +9,7 @@ st.set_page_config(
 )
 
 st.title("⚡ Deep Reader Agent")
-st.caption("Personal Intelligence Terminal - Phase 1 Verification")
+st.caption("Deep Analysis Scout & Density Reader — NFL Pillar")
 
 # Retrieve API key from Streamlit Secrets or Environment
 api_key = st.secrets.get("GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY"))
@@ -18,32 +18,70 @@ if not api_key:
     st.error("Missing GEMINI_API_KEY. Please configure it in Streamlit Secrets.")
     st.stop()
 
-st.divider()
-st.subheader("System Status")
-st.write("UI Scaffolding: **Active**")
-st.write("Target Pillars: **NFL Analytics | Soccer Systems | Sonic Architecture**")
+# --- Search Vectors UI ---
+st.subheader("Tactical Search Vectors")
 
-# Interactive verification ping
-if st.button("Ping Gemini 2.5 Flash", type="primary"):
-    with st.spinner("Connecting directly to Google AI Studio REST API..."):
+default_focus = "Bobby Slowik, Next Gen Stats, NFL EPA, All-22 film study, NFL Deep Analysis"
+focus_keywords = st.text_area(
+    "Focus Keywords & Core Concepts (What to scout for):",
+    value=default_focus,
+    help="Add your favorite coaches, schemes, metrics, or tactical concepts here."
+)
+
+default_exclude = "fantasy football, waiver wire, betting odds, injury reports, generic press conference quotes, mock draft"
+exclude_keywords = st.text_area(
+    "Exclusions & Noise Filters (What to eliminate):",
+    value=default_exclude,
+    help="Forces Gemini to drop surface-level sports chatter."
+)
+
+st.divider()
+
+# --- Scout Execution ---
+if st.button("⚡ Scout High-Density Content", type="primary"):
+    with st.spinner("Scouting live web, discovering independent feeds, and scoring density..."):
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
         headers = {"Content-Type": "application/json"}
+        
+        prompt = f"""
+You are an elite NFL tactical analyst and content curation agent.
+Search the live web for deep, technical NFL analytics articles, Substacks, and film breakdowns published recently.
+
+SEARCH PRIORITIES:
+{focus_keywords}
+
+STRICT EXCLUSIONS (DO NOT RETURN ARTICLES ABOUT THESE):
+{exclude_keywords}
+
+TASK & OUTPUT RULES:
+1. Scout and select the 4-5 highest density articles/breakdowns found on the live web matching the priorities.
+2. For each article, provide:
+   - Article Title (as a Markdown header)
+   - Author / Publication Source & Direct Markdown Link (e.g. [Read Full Piece](URL))
+   - Information Density Score: Score from 1.0 to 10.0 (based strictly on depth of scheme/metrics vs surface recap)
+   - Key Tactical Takeaways: 3 concise bullet points breaking down the specific scheme, coverage, play concept, or metric mechanics.
+   - Why It Matters: 1 sentence on the strategic takeaway.
+
+Ensure the output is clean, readable, and ready for a mobile terminal interface.
+"""
+
         payload = {
             "contents": [{
                 "parts": [{
-                    "text": "State in 2 crisp sentences that the Deep Reader Agent intelligence pipeline is initialized and ready for tactical feed ingestion."
+                    "text": prompt
                 }]
-            }]
+            }],
+            # Enable Google Search Grounding to discover live independent feeds
+            "tools": [{"google_search": {}}]
         }
-        
+
         try:
             res = requests.post(url, headers=headers, json=payload)
             if res.status_code == 200:
                 data = res.json()
                 text = data["candidates"][0]["content"]["parts"][0]["text"]
-                st.success("API Connection Verified!")
-                st.info(text)
+                st.markdown(text)
             else:
                 st.error(f"API Error ({res.status_code}): {res.text}")
         except Exception as e:
-            st.error(f"Network Error: {e}")
+            st.error(f"Execution Error: {e}")
