@@ -63,7 +63,7 @@ TASK & OUTPUT RULES:
    - **Key Tactical Takeaways**: 3 concise bullet points breaking down the specific scheme, coverage, play concept, or metric mechanics.
    - **Strategic Impact**: 1 sentence on the broader takeaway for modern NFL systems.
 
-DO NOT hallucinate or output raw markdown hyperlinks in your text; the verified URLs will be rendered programmatically from search metadata.
+DO NOT hallucinate or output raw markdown hyperlinks in your text; verified URLs will be rendered programmatically below.
 """
 
         payload = {
