@@ -39,32 +39,31 @@ st.divider()
 
 # --- Scout Execution ---
 if st.button("⚡ Scout High-Density Content", type="primary"):
-    with st.spinner("Scouting live web for 2026 tactical breakdowns & scoring density..."):
-        # Stable endpoint: gemini-3.6-flash
+    with st.spinner("Scouting live web for verified 2026 tactical breakdowns..."):
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={api_key}"
         headers = {"Content-Type": "application/json"}
         
         prompt = f"""
 You are an elite NFL tactical analyst and content curation agent.
-Search the live web strictly for deep, technical NFL analytics articles, Substacks, and film breakdowns published in the current year (2026).
+Search the live web strictly for deep, technical NFL analytics articles, Substacks, and film breakdowns published in 2026.
 
 SEARCH PRIORITIES:
 {focus_keywords}
 
 STRICT EXCLUSIONS & FILTERS:
 {exclude_keywords}
-- STRICT DATE CONSTRAINT: DO NOT return any articles published in 2025, 2024, or earlier. Every result MUST be from 2026.
+- STRICT DATE CONSTRAINT: Every breakdown must be from 2026.
 
 TASK & OUTPUT RULES:
-1. Scout and select 4-5 high-density articles/breakdowns published in 2026 that match the priorities.
-2. For each article, format as:
-   - ### Article Title
-   - **Source & Date**: Author / Publication Source | Date Published (Must be 2026) | [Read Full Piece](Direct URL)
+1. Provide 4-5 high-density tactical breakdowns matching the priorities.
+2. Structure each breakdown clearly:
+   - ### Article / Concept Title
+   - **Author / Source & Date**: Author or Publication Name (2026)
    - **Information Density Score**: Score from 1.0 to 10.0 (based strictly on depth of scheme/metrics vs surface recap)
    - **Key Tactical Takeaways**: 3 concise bullet points breaking down the specific scheme, coverage, play concept, or metric mechanics.
    - **Strategic Impact**: 1 sentence on the broader takeaway for modern NFL systems.
 
-Ensure every piece is strictly from 2026 and formatted cleanly for mobile reading.
+DO NOT hallucinate or output raw markdown hyperlinks in your text; the verified URLs will be rendered programmatically from search metadata.
 """
 
         payload = {
@@ -80,8 +79,29 @@ Ensure every piece is strictly from 2026 and formatted cleanly for mobile readin
             res = requests.post(url, headers=headers, json=payload)
             if res.status_code == 200:
                 data = res.json()
-                text = data["candidates"][0]["content"]["parts"][0]["text"]
+                candidate = data.get("candidates", [{}])[0]
+                text = candidate.get("content", {}).get("parts", [{}])[0].get("text", "")
+                
+                # Render the tactical analysis
                 st.markdown(text)
+                
+                # Extract and render verified, live ground truth URLs
+                grounding_metadata = candidate.get("groundingMetadata", {})
+                chunks = grounding_metadata.get("groundingChunks", [])
+                
+                verified_sources = []
+                for chunk in chunks:
+                    web_info = chunk.get("web", {})
+                    uri = web_info.get("uri")
+                    title = web_info.get("title", uri)
+                    if uri and uri not in [v['uri'] for v in verified_sources]:
+                        verified_sources.append({"title": title, "uri": uri})
+                
+                if verified_sources:
+                    st.divider()
+                    st.subheader("🔗 Verified Source Articles & Film Feeds")
+                    for src in verified_sources:
+                        st.markdown(f"- [{src['title']}]({src['uri']})")
             else:
                 st.error(f"API Error ({res.status_code}): {res.text}")
         except Exception as e:
