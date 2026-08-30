@@ -1,6 +1,6 @@
 import streamlit as st
 import requests
-import json
+import re
 import os
 
 st.set_page_config(
@@ -40,7 +40,7 @@ st.divider()
 
 # --- Scout Execution ---
 if st.button("⚡ Scout High-Density Content", type="primary"):
-    with st.spinner("Scouting 2026 technical breakdowns with verified live sources..."):
+    with st.spinner("Scouting 2026 technical breakdowns with verified inline sources..."):
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={api_key}"
         headers = {"Content-Type": "application/json"}
         
@@ -55,17 +55,20 @@ STRICT EXCLUSIONS & FILTERS:
 {exclude_keywords}
 - STRICT DATE CONSTRAINT: Every breakdown must be from 2026.
 
-OUTPUT INSTRUCTIONS:
-Return a JSON array containing 4-5 high-density article cards.
-Each JSON object must have the following keys:
-- "title": (string) Exact title of the article or breakdown.
-- "source_name": (string) Author and Publication Name (e.g., "Bill Barnwell | ESPN" or "Ben Slovak | Substack").
-- "density_score": (string) Information Density Score (e.g. "9.1/10").
-- "takeaways": (list of strings) 3 concise bullet points detailing specific scheme mechanics, coverage rules, or metrics.
-- "strategic_impact": (string) 1 sentence on the broader takeaway for modern NFL systems.
+STRUCTURE & FORMATTING RULES:
+Output 4 to 5 distinct article cards separated by "---".
+For every single article, follow this exact structure:
 
-DO NOT generate fake URL links inside the JSON.
-Output ONLY valid JSON.
+### [Number]. [Article / Concept Title]
+- **Author / Source & Date**: [Author/Publication] | 2026
+- **Information Density Score**: [Score]/10
+- **Key Tactical Takeaways**:
+  * [Takeaway 1]
+  * [Takeaway 2]
+  * [Takeaway 3]
+- **Strategic Impact**: [1 macro sentence]
+- **Source Link**: [Insert the exact live webpage URL found in Google Search]
+---
 """
 
         payload = {
@@ -82,57 +85,32 @@ Output ONLY valid JSON.
             if res.status_code == 200:
                 data = res.json()
                 candidate = data.get("candidates", [{}])[0]
-                text = candidate.get("content", {}).get("parts", [{}])[0].get("text", "")
-                
-                # Extract verified Google Grounding URLs directly from metadata
-                grounding_metadata = candidate.get("groundingMetadata", {})
-                chunks = grounding_metadata.get("groundingChunks", [])
-                verified_urls = []
-                for c in chunks:
-                    uri = c.get("web", {}).get("uri")
-                    if uri and uri.startswith("http") and uri not in verified_urls:
-                        verified_urls.append(uri)
+                raw_text = candidate.get("content", {}).get("parts", [{}])[0].get("text", "")
 
-                # Clean markdown backticks if wrapped
-                cleaned_text = text.strip()
-                if cleaned_text.startswith("```json"):
-                    cleaned_text = cleaned_text[7:]
-                if cleaned_text.startswith("```"):
-                    cleaned_text = cleaned_text[3:]
-                if cleaned_text.endswith("```"):
-                    cleaned_text = cleaned_text[:-3]
-                cleaned_text = cleaned_text.strip()
+                # Split output into individual article cards
+                sections = raw_text.split("---")
 
-                try:
-                    articles = json.loads(cleaned_text)
-                    for i, item in enumerate(articles):
-                        title = item.get("title", f"Tactical Breakdown {i+1}")
-                        source_name = item.get("source_name", "Analytics Source (2026)")
-                        density = item.get("density_score", "8.5/10")
-                        takeaways = item.get("takeaways", [])
-                        strategic_impact = item.get("strategic_impact", "")
+                for section in sections:
+                    cleaned_section = section.strip()
+                    if not cleaned_section:
+                        continue
 
-                        # Assign strictly verified grounding URLs by index
-                        live_url = verified_urls[i] if i < len(verified_urls) else (verified_urls[0] if verified_urls else None)
+                    # Extract the Source Link URL if present
+                    url_match = re.search(r"\*\*Source Link\*\*:\s*\[?(https?://[^\s\]\)\>]+)\]?", cleaned_section)
+                    
+                    # Remove the raw link line so we render a clean button instead
+                    display_text = re.sub(r"-\s*\*\*Source Link\*\*:\s*.*", "", cleaned_section).strip()
 
-                        # Render article card
-                        st.subheader(f"{i+1}. {title}")
-                        st.caption(f"**Author / Source**: {source_name} | **Density Score**: {density}")
-                        
-                        st.markdown("**Key Tactical Takeaways:**")
-                        for bullet in takeaways:
-                            st.markdown(f"- {bullet}")
-                            
-                        if strategic_impact:
-                            st.markdown(f"**Strategic Impact:** {strategic_impact}")
-                            
-                        if live_url:
-                            st.link_button(f"🔗 Read Original Source ({source_name.split('|')[0].strip()})", live_url)
-                        
-                        st.divider()
+                    # Render card content
+                    st.markdown(display_text)
 
-                except Exception:
-                    st.markdown(text)
+                    # Render direct inline button
+                    if url_match:
+                        target_url = url_match.group(1).rstrip(".")
+                        st.link_button("🔗 Open Full Piece & Film Breakdown", target_url)
+
+                    st.divider()
+
             else:
                 st.error(f"API Error ({res.status_code}): {res.text}")
         except Exception as e:
