@@ -57,6 +57,7 @@ STRICT EXCLUSIONS & FILTERS:
 
 STRUCTURE & FORMATTING RULES:
 Output 4 to 5 distinct article cards separated by "---".
+DO NOT invent or write any URLs in your text.
 For every single article, follow this exact structure:
 
 ### [Number]. [Article / Concept Title]
@@ -67,7 +68,6 @@ For every single article, follow this exact structure:
   * [Takeaway 2]
   * [Takeaway 3]
 - **Strategic Impact**: [1 macro sentence]
-- **Source Link**: [Insert the exact live webpage URL found in Google Search]
 ---
 """
 
@@ -86,29 +86,51 @@ For every single article, follow this exact structure:
                 data = res.json()
                 candidate = data.get("candidates", [{}])[0]
                 raw_text = candidate.get("content", {}).get("parts", [{}])[0].get("text", "")
-
-                # Split output into individual article cards
-                sections = raw_text.split("---")
-
-                for section in sections:
-                    cleaned_section = section.strip()
-                    if not cleaned_section:
-                        continue
-
-                    # Extract the Source Link URL if present
-                    url_match = re.search(r"\*\*Source Link\*\*:\s*\[?(https?://[^\s\]\)\>]+)\]?", cleaned_section)
+                
+                # Extract verified Google Grounding Chunks and Support Mappings
+                grounding_metadata = candidate.get("groundingMetadata", {})
+                chunks = grounding_metadata.get("groundingChunks", [])
+                supports = grounding_metadata.get("groundingSupports", [])
+                
+                # Split text into article cards
+                sections = [s.strip() for s in raw_text.split("---") if s.strip()]
+                
+                # Build character index spans for each card
+                current_cursor = 0
+                for i, section in enumerate(sections):
+                    st.markdown(section)
                     
-                    # Remove the raw link line so we render a clean button instead
-                    display_text = re.sub(r"-\s*\*\*Source Link\*\*:\s*.*", "", cleaned_section).strip()
+                    card_start = raw_text.find(section, current_cursor)
+                    card_end = card_start + len(section)
+                    current_cursor = card_end
+                    
+                    # Find ground-truth URI tied to this specific section
+                    matched_uri = None
+                    matched_title = None
+                    
+                    for sup in supports:
+                        seg = sup.get("segment", {})
+                        seg_start = seg.get("startIndex", 0)
+                        indices = sup.get("groundingChunkIndices", [])
+                        
+                        if card_start <= seg_start <= card_end and indices:
+                            chunk_idx = indices[0]
+                            if chunk_idx < len(chunks):
+                                web_data = chunks[chunk_idx].get("web", {})
+                                matched_uri = web_data.get("uri")
+                                matched_title = web_data.get("title", "Original Article")
+                                break
+                    
+                    # Fallback to index matching if segment offset not strictly found
+                    if not matched_uri and i < len(chunks):
+                        web_data = chunks[i].get("web", {})
+                        matched_uri = web_data.get("uri")
+                        matched_title = web_data.get("title", "Original Article")
 
-                    # Render card content
-                    st.markdown(display_text)
-
-                    # Render direct inline button
-                    if url_match:
-                        target_url = url_match.group(1).rstrip(".")
-                        st.link_button("🔗 Open Full Piece & Film Breakdown", target_url)
-
+                    # Render native verified button
+                    if matched_uri:
+                        st.link_button(f"🔗 Read Source ({matched_title[:45]}...)", matched_uri)
+                        
                     st.divider()
 
             else:
